@@ -1,0 +1,19 @@
+{
+  "name": "cordova-plugin-shared-token",
+  "version": "1.0.0",
+  "description": "Cordova plugin for sharing tokens between iOS applications using a shared Keychain Access Group",
+  "cordova": {
+    "id": "cordova-plugin-shared-token",
+    "platforms": [
+      "ios"
+    ]
+  },
+  "keywords": [
+    "cordova",
+    "ios",
+    "keychain",
+    "shared-keychain",
+    "token"
+  ],
+  "license": "MIT"
+}
