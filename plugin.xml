@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<plugin
+    xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    id="cordova-plugin-shared-token"
+    version="1.0.0">
+
+    <name>SharedToken</name>
+
+    <description>
+        Cordova plugin for sharing a token between iOS applications
+        using a shared Keychain Access Group.
+    </description>
+
+    <license>MIT</license>
+
+    <engines>
+        <engine name="cordova" version=">=10.0.0" />
+        <engine name="cordova-ios" version=">=7.0.0" />
+    </engines>
+
+
+    <!-- ================================================== -->
+    <!-- JavaScript -->
+    <!-- ================================================== -->
+
+    <js-module
+        src="www/SharedToken.js"
+        name="SharedToken">
+
+        <clobbers target="SharedToken" />
+
+    </js-module>
+
+
+    <!-- ================================================== -->
+    <!-- iOS -->
+    <!-- ================================================== -->
+
+    <platform name="ios">
+
+        <!-- Register native Cordova plugin -->
+        <config-file
+            target="config.xml"
+            parent="/*">
+
+            <feature name="SharedToken">
+
+                <param
+                    name="ios-package"
+                    value="SharedToken" />
+
+            </feature>
+
+        </config-file>
+
+
+        <!-- Swift source file -->
+        <source-file
+            src="src/ios/SharedToken.swift" />
+
+
+        <!-- Apple Security Framework -->
+        <framework
+            src="Security.framework"
+            weak="false" />
+
+    </platform>
+
+</plugin>
