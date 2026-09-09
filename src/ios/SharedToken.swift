@@ -21,7 +21,7 @@ class SharedToken: CDVPlugin {
     // ABCDE12345 = Apple Team ID / App Identifier Prefix
     //
     //private let accessGroup = "Y4Z85796NV.com.dfn.shared"
-	//private let accessGroup = "C98R689E4K.com.dfn.shared"
+	private let accessGroup = "C98R689E4K.com.dfn.shared"
 
 
     // =======================================================
@@ -58,7 +58,10 @@ class SharedToken: CDVPlugin {
                 service,
 
             kSecAttrAccount as String:
-                account
+                account,
+				
+			kSecAttrAccessGroup as String:
+                accessGroup
         ]
 
 
@@ -131,6 +134,9 @@ class SharedToken: CDVPlugin {
 
             kSecAttrAccount as String:
                 account,
+				
+			kSecAttrAccessGroup as String:
+                accessGroup,
 
             kSecReturnData as String:
                 true,
@@ -202,7 +208,10 @@ class SharedToken: CDVPlugin {
                 service,
 
             kSecAttrAccount as String:
-                account
+                account,
+
+			kSecAttrAccessGroup as String:
+                accessGroup
         ]
 
 
