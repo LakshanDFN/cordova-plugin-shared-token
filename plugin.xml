@@ -53,6 +53,17 @@
             </feature>
 
         </config-file>
+		
+		<!-- Add shared Keychain entitlement -->
+		<config-file
+			target="*.entitlements"
+			parent="keychain-access-groups">
+
+			<array>
+				<string>$(AppIdentifierPrefix)com.dfn.shared</string>
+			</array>
+
+		</config-file>
 
 
         <!-- Swift source file -->
