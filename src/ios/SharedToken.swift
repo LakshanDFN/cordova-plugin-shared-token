@@ -20,7 +20,8 @@ class SharedToken: CDVPlugin {
     //
     // ABCDE12345 = Apple Team ID / App Identifier Prefix
     //
-    private let accessGroup = "Y4Z85796NV.com.dfn.shared"
+    //private let accessGroup = "Y4Z85796NV.com.dfn.shared"
+	private let accessGroup = "C98R689E4K.com.dfn.shared"
 
 
     // =======================================================
