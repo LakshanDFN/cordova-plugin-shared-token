@@ -56,13 +56,19 @@
 		
 		<!-- Add shared Keychain entitlement -->
 		<config-file
-			target="*.entitlements"
+			target="*/Entitlements-Debug.plist"
 			parent="keychain-access-groups">
-
 			<array>
 				<string>$(AppIdentifierPrefix)com.dfn.shared</string>
 			</array>
+		</config-file>
 
+		<config-file
+			target="*/Entitlements-Release.plist"
+			parent="keychain-access-groups">
+			<array>
+				<string>$(AppIdentifierPrefix)com.dfn.shared</string>
+			</array>
 		</config-file>
 
 
