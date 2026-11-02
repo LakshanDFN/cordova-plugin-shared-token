@@ -3,7 +3,7 @@
 <plugin
     xmlns="http://apache.org/cordova/ns/plugins/1.0"
     id="cordova-plugin-shared-token"
-    version="1.0.0">
+    version="1.0.1">
 
     <name>SharedToken</name>
 
@@ -18,7 +18,6 @@
         <engine name="cordova" version=">=10.0.0" />
         <engine name="cordova-ios" version=">=7.0.0" />
     </engines>
-
 
     <!-- ================================================== -->
     <!-- JavaScript -->
@@ -53,31 +52,55 @@
             </feature>
 
         </config-file>
-		
-		<!-- Add shared Keychain entitlement -->
-		<config-file
-			target="*/Entitlements-Debug.plist"
-			parent="keychain-access-groups">
-			<array>
-				<string>$(AppIdentifierPrefix)com.dfn.shared</string>
-			</array>
-		</config-file>
-
-		<config-file
-			target="*/Entitlements-Release.plist"
-			parent="keychain-access-groups">
-			<array>
-				<string>$(AppIdentifierPrefix)com.dfn.shared</string>
-			</array>
-		</config-file>
 
 
-        <!-- Swift source file -->
+        <!-- ================================================== -->
+        <!-- Shared Keychain Entitlement -->
+        <!-- ================================================== -->
+
+        <config-file
+            target="*/Entitlements-Debug.plist"
+            parent="keychain-access-groups">
+
+            <array>
+                <string>$(AppIdentifierPrefix)com.dfn.shared</string>
+            </array>
+
+        </config-file>
+
+
+        <config-file
+            target="*/Entitlements-Release.plist"
+            parent="keychain-access-groups">
+
+            <array>
+                <string>$(AppIdentifierPrefix)com.dfn.shared</string>
+            </array>
+
+        </config-file>
+
+
+        <!-- ================================================== -->
+        <!-- Automatically enable Keychain Sharing capability -->
+        <!-- ================================================== -->
+
+        <hook
+            type="after_prepare"
+            src="scripts/ios/enable-keychain-sharing.js" />
+
+
+        <!-- ================================================== -->
+        <!-- Swift source -->
+        <!-- ================================================== -->
+
         <source-file
             src="src/ios/SharedToken.swift" />
 
 
+        <!-- ================================================== -->
         <!-- Apple Security Framework -->
+        <!-- ================================================== -->
+
         <framework
             src="Security.framework"
             weak="false" />
