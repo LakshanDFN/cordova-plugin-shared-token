@@ -16,20 +16,15 @@ module.exports = function (context) {
 
     if (!fs.existsSync(iosPath)) {
         console.log(
-            '[SharedToken] iOS platform directory not found. Skipping Keychain Sharing configuration.'
+            '[SharedToken] iOS platform directory not found. Skipping configuration.'
         );
 
         return;
     }
 
     /*
-     * Cordova normally creates:
-     *
-     * platforms/ios/App/App.xcodeproj/project.pbxproj
-     *
-     * But the project name can vary, so find the .xcodeproj dynamically.
+     * Find the Xcode project.
      */
-
     var projectDirectories = fs.readdirSync(iosPath)
         .filter(function (item) {
             return item.endsWith('.xcodeproj');
@@ -37,7 +32,7 @@ module.exports = function (context) {
 
     if (projectDirectories.length === 0) {
         throw new Error(
-            '[SharedToken] Could not find an Xcode project under platforms/ios.'
+            '[SharedToken] Could not find Xcode project under platforms/ios.'
         );
     }
 
@@ -61,8 +56,88 @@ module.exports = function (context) {
         }
 
         /*
-         * Find the main application target.
+         * =====================================================
+         * 1. Find DEVELOPMENT_TEAM
+         * =====================================================
+         *
+         * Example:
+         *
+         * DEVELOPMENT_TEAM = C98R689E4K;
          */
+
+        var projectContent = fs.readFileSync(
+            xcodeProjectPath,
+            'utf8'
+        );
+
+        var teamIdMatch = projectContent.match(
+            /DEVELOPMENT_TEAM\s*=\s*([A-Z0-9]+)\s*;/
+        );
+
+        if (!teamIdMatch) {
+            throw new Error(
+                '[SharedToken] DEVELOPMENT_TEAM was not found in the Xcode project.'
+            );
+        }
+
+        var teamId = teamIdMatch[1];
+
+        console.log(
+            '[SharedToken] Detected Apple Team ID: ' + teamId
+        );
+
+
+        /*
+         * =====================================================
+         * 2. Generate SharedTokenConfig.swift
+         * =====================================================
+         */
+
+        var configDirectory = path.join(
+            iosPath,
+            'SharedToken'
+        );
+
+        if (!fs.existsSync(configDirectory)) {
+            fs.mkdirSync(configDirectory, {
+                recursive: true
+            });
+        }
+
+        var configFilePath = path.join(
+            configDirectory,
+            'SharedTokenConfig.swift'
+        );
+
+        var accessGroup =
+            teamId + '.com.dfn.shared';
+
+        var configContent =
+            'import Foundation\n\n' +
+            'struct SharedTokenConfig {\n' +
+            '    static let accessGroup = "' +
+            accessGroup +
+            '"\n' +
+            '}\n';
+
+        fs.writeFileSync(
+            configFilePath,
+            configContent,
+            'utf8'
+        );
+
+        console.log(
+            '[SharedToken] Generated Keychain Access Group: ' +
+            accessGroup
+        );
+
+
+        /*
+         * =====================================================
+         * 3. Add generated Swift file to Xcode project
+         * =====================================================
+         */
+
         var target = project.getTarget(
             'com.apple.product-type.application'
         );
@@ -74,19 +149,33 @@ module.exports = function (context) {
         }
 
         /*
-         * This is the equivalent of:
-         *
-         * Xcode
-         *   → Signing & Capabilities
-         *   → Keychain Sharing
-         *
-         * The capability is represented in project.pbxproj as:
-         *
-         * SystemCapabilities = {
-         *     com.apple.KeychainSharing = {
-         *         enabled = 1;
-         *     };
-         * };
+         * Check whether SharedTokenConfig.swift is already
+         * included in the Xcode project.
+         */
+
+        var sourceFileAlreadyExists =
+            projectContent.indexOf(
+                'SharedTokenConfig.swift'
+            ) !== -1;
+
+        if (!sourceFileAlreadyExists) {
+
+            project.addSourceFile(
+                'SharedToken/SharedTokenConfig.swift',
+                {},
+                target.uuid
+            );
+
+            console.log(
+                '[SharedToken] Added SharedTokenConfig.swift to Xcode project.'
+            );
+        }
+
+
+        /*
+         * =====================================================
+         * 4. Enable Keychain Sharing capability
+         * =====================================================
          */
 
         var capabilities = {
@@ -101,6 +190,17 @@ module.exports = function (context) {
             target
         );
 
+        console.log(
+            '[SharedToken] Keychain Sharing capability enabled.'
+        );
+
+
+        /*
+         * =====================================================
+         * 5. Write modified Xcode project
+         * =====================================================
+         */
+
         fs.writeFileSync(
             xcodeProjectPath,
             project.writeSync(),
@@ -108,8 +208,7 @@ module.exports = function (context) {
         );
 
         console.log(
-            '[SharedToken] Keychain Sharing capability enabled successfully.'
+            '[SharedToken] iOS configuration completed successfully.'
         );
-
     });
 };

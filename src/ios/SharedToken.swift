@@ -12,16 +12,7 @@ class SharedToken: CDVPlugin {
 
     private let account = "AMToken"
 
-    // IMPORTANT:
-    // Replace this with your actual Keychain Access Group.
-    //
-    // Example:
-    // ABCDE12345.com.company.shared
-    //
-    // ABCDE12345 = Apple Team ID / App Identifier Prefix
-    //
-    //private let accessGroup = "Y4Z85796NV.com.dfn.shared"
-	private let accessGroup = "C98R689E4K.com.dfn.shared"
+	private let accessGroup = SharedTokenConfig.accessGroup
 
 
     // =======================================================
