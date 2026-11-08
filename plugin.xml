@@ -1,15 +1,17 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 
 <plugin
     xmlns="http://apache.org/cordova/ns/plugins/1.0"
+	xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-plugin-shared-token"
-    version="1.0.1">
+    version="1.1.0">
 
     <name>SharedToken</name>
 
     <description>
-        Cordova plugin for sharing a token between iOS applications
-        using a shared Keychain Access Group.
+        Cordova plugin for secure token sharing between trusted
+        iOS and Android applications.
     </description>
 
     <license>MIT</license>
@@ -17,94 +19,121 @@
     <engines>
         <engine name="cordova" version=">=10.0.0" />
         <engine name="cordova-ios" version=">=7.0.0" />
+        <engine name="cordova-android" version=">=12.0.0" />
     </engines>
 
-    <!-- ================================================== -->
-    <!-- JavaScript -->
-    <!-- ================================================== -->
-
-    <js-module
-        src="www/SharedToken.js"
-        name="SharedToken">
-
+    <js-module src="www/SharedToken.js" name="SharedToken">
         <clobbers target="SharedToken" />
-
     </js-module>
 
-
-    <!-- ================================================== -->
-    <!-- iOS -->
-    <!-- ================================================== -->
-
+    <!-- iOS: retain existing implementation -->
     <platform name="ios">
 
-        <!-- Register native Cordova plugin -->
-        <config-file
-            target="config.xml"
-            parent="/*">
-
+        <config-file target="config.xml" parent="/*">
             <feature name="SharedToken">
-
-                <param
-                    name="ios-package"
-                    value="SharedToken" />
-
+                <param name="ios-package" value="SharedToken" />
             </feature>
-
         </config-file>
-
-
-        <!-- ================================================== -->
-        <!-- Shared Keychain Entitlement -->
-        <!-- ================================================== -->
 
         <config-file
             target="*/Entitlements-Debug.plist"
             parent="keychain-access-groups">
-
             <array>
                 <string>$(AppIdentifierPrefix)com.dfn.shared</string>
             </array>
-
         </config-file>
-
 
         <config-file
             target="*/Entitlements-Release.plist"
             parent="keychain-access-groups">
-
             <array>
                 <string>$(AppIdentifierPrefix)com.dfn.shared</string>
             </array>
-
         </config-file>
-
-
-        <!-- ================================================== -->
-        <!-- Automatically enable Keychain Sharing capability -->
-        <!-- ================================================== -->
 
         <hook
             type="after_prepare"
             src="scripts/ios/enable-keychain-sharing.js" />
 
+        <source-file src="src/ios/SharedToken.swift" />
 
-        <!-- ================================================== -->
-        <!-- Swift source -->
-        <!-- ================================================== -->
-
-        <source-file
-            src="src/ios/SharedToken.swift" />
-
-
-        <!-- ================================================== -->
-        <!-- Apple Security Framework -->
-        <!-- ================================================== -->
-
-        <framework
-            src="Security.framework"
-            weak="false" />
+        <framework src="Security.framework" weak="false" />
 
     </platform>
+    
+	<!-- Android -->
+	<platform name="android">
 
+		<!-- OSS integration configuration -->
+		<preference name="OSS_PACKAGE_ID" default="com.oss.app" />
+		<preference name="OSS_PROVIDER_AUTHORITY" default="com.oss.app.sharedtoken" />
+		<preference name="OSS_PERMISSION" default="com.oss.app.sharedtoken.permission.ACCESS" />
+		<preference name="OSS_CERT_SHA256" default="NOT_CONFIGURED" />
+
+		<!-- Cordova native plugin registration -->
+		<config-file target="res/xml/config.xml" parent="/*">
+			<feature name="SharedToken">
+				<param name="android-package"
+					   value="com.directfn.sharedtoken.SharedToken" />
+			</feature>
+		</config-file>
+
+		<!-- Package visibility for Android 11+ -->
+		<config-file target="AndroidManifest.xml" parent="/manifest">
+			<queries>
+				<package android:name="$OSS_PACKAGE_ID" />
+				<provider android:authorities="$OSS_PROVIDER_AUTHORITY" />
+			</queries>
+		</config-file>
+
+		<!-- DFN declares its own signature permission and requests OSS permission -->
+		<config-file target="AndroidManifest.xml" parent="/manifest">
+			<permission
+				android:name="$PACKAGE_NAME.sharedtoken.permission.ACCESS"
+				android:protectionLevel="signature" />
+
+			<uses-permission android:name="$OSS_PERMISSION" />
+		</config-file>
+
+		<!-- Register DFN's ContentProvider and OSS configuration -->
+		<config-file target="AndroidManifest.xml" parent="/manifest/application">
+
+			<provider
+				android:name="com.directfn.sharedtoken.SharedTokenProvider"
+				android:authorities="$PACKAGE_NAME.sharedtoken"
+				android:exported="true"
+				android:permission="$PACKAGE_NAME.sharedtoken.permission.ACCESS" />
+
+			<meta-data
+				android:name="com.directfn.sharedtoken.OSS_PACKAGE_ID"
+				android:value="$OSS_PACKAGE_ID" />
+
+			<meta-data
+				android:name="com.directfn.sharedtoken.OSS_PROVIDER_AUTHORITY"
+				android:value="$OSS_PROVIDER_AUTHORITY" />
+
+			<meta-data
+				android:name="com.directfn.sharedtoken.OSS_PERMISSION"
+				android:value="$OSS_PERMISSION" />
+
+			<meta-data
+				android:name="com.directfn.sharedtoken.OSS_CERT_SHA256"
+				android:value="$OSS_CERT_SHA256" />
+
+		</config-file>
+
+		<!-- Android native source files -->
+		<source-file src="src/android/SharedToken.java"
+					 target-dir="src/com/directfn/sharedtoken" />
+
+		<source-file src="src/android/SharedTokenProvider.java"
+					 target-dir="src/com/directfn/sharedtoken" />
+
+		<source-file src="src/android/SharedTokenStorage.java"
+					 target-dir="src/com/directfn/sharedtoken" />
+
+		<source-file src="src/android/TokenSecurity.java"
+					 target-dir="src/com/directfn/sharedtoken" />
+
+	</platform>
 </plugin>
