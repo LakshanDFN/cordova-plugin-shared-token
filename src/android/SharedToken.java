@@ -138,6 +138,9 @@ public class SharedToken extends CordovaPlugin {
 
                 String expectedCertificate =
                     metadata.getString(META_OSS_CERT);
+					
+				String permission =
+					metadata.getString(META_OSS_PERMISSION);
 
                 if (isEmpty(authority) ||
                     isEmpty(ossPackage) ||
@@ -167,9 +170,6 @@ public class SharedToken extends CordovaPlugin {
                     );
                     return;
                 }
-
-                String permission =
-					metadata.getString(META_OSS_PERMISSION);
 
                 if (context.checkSelfPermission(permission)
                     != PackageManager.PERMISSION_GRANTED) {
