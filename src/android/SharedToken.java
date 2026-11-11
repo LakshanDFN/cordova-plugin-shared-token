@@ -1,4 +1,3 @@
-
 package com.directfn.sharedtoken;
 
 import android.content.Context;
@@ -12,6 +11,7 @@ import org.apache.cordova.CordovaPlugin;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,29 +20,24 @@ public class SharedToken extends CordovaPlugin {
 
     private static final String META_OSS_AUTHORITY =
         "com.directfn.sharedtoken.OSS_PROVIDER_AUTHORITY";
-
     private static final String META_OSS_PACKAGE =
         "com.directfn.sharedtoken.OSS_PACKAGE_ID";
-
     private static final String META_OSS_CERT =
         "com.directfn.sharedtoken.OSS_CERT_SHA256";
-
-    private static final String OSS_PERMISSION_SUFFIX =
-        ".sharedtoken.permission.ACCESS";
-
     private static final String META_OSS_PERMISSION =
-    "com.directfn.sharedtoken.OSS_PERMISSION";
-	
-	private static final String METHOD_GET_TOKEN = "getAMToken";
+        "com.directfn.sharedtoken.OSS_PERMISSION";
+
+    private static final String METHOD_GET_TOKEN = "getAMToken";
 
     private static final String KEY_STATUS = "status";
     private static final String KEY_TOKEN = "AMToken";
     private static final String KEY_VERSION = "contractVersion";
+    private static final String KEY_ISSUED_AT = "issuedAt";
 
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_NOT_FOUND = "TOKEN_NOT_FOUND";
 
-    private static final int CONTRACT_VERSION = 1;
+    private static final int CONTRACT_VERSION = 2;
 
     private final ExecutorService executor =
         Executors.newSingleThreadExecutor();
@@ -55,13 +50,16 @@ public class SharedToken extends CordovaPlugin {
     ) throws JSONException {
 
         switch (action) {
-
             case "storeToken":
                 storeToken(args, callbackContext);
                 return true;
 
             case "getToken":
-                getToken(callbackContext);
+                getToken(callbackContext, false);
+                return true;
+
+            case "getTokenDetails":
+                getToken(callbackContext, true);
                 return true;
 
             case "deleteToken":
@@ -77,85 +75,68 @@ public class SharedToken extends CordovaPlugin {
         JSONArray args,
         CallbackContext callbackContext
     ) {
-
         final String token = args.optString(0, null);
+        final long issuedAt = args.optLong(1, -1L);
 
         if (token == null || token.trim().isEmpty()) {
             callbackContext.error("AMToken cannot be empty");
             return;
         }
 
+        if (issuedAt <= 0) {
+            callbackContext.error(
+                "issuedAt must be a valid Unix epoch timestamp in milliseconds"
+            );
+            return;
+        }
+
         executor.execute(() -> {
-
             try {
-
                 Context context = cordova.getActivity();
-
-                SharedTokenStorage.store(context, token);
-
+                SharedTokenStorage.store(context, token, issuedAt);
                 callbackContext.success("SUCCESS");
-
             } catch (Exception e) {
-
-                callbackContext.error(
-                    "Unable to store AMToken"
-                );
+                callbackContext.error("Unable to store AMToken and issuedAt");
             }
         });
     }
 
-    private void getToken(CallbackContext callbackContext) {
-
+    private void getToken(
+        CallbackContext callbackContext,
+        boolean returnDetails
+    ) {
         executor.execute(() -> {
-
             try {
-
                 Context context = cordova.getActivity();
+                PackageManager packageManager = context.getPackageManager();
 
-                PackageManager packageManager =
-                    context.getPackageManager();
-
-                PackageInfo appInfo =
-                    packageManager.getPackageInfo(
-                        context.getPackageName(),
-                        PackageManager.GET_META_DATA
-                    );
+                PackageInfo appInfo = packageManager.getPackageInfo(
+                    context.getPackageName(),
+                    PackageManager.GET_META_DATA
+                );
 
                 Bundle metadata = appInfo.applicationInfo.metaData;
 
                 if (metadata == null) {
-                    callbackContext.error(
-                        "OSS configuration is missing"
-                    );
+                    callbackContext.error("OSS configuration is missing");
                     return;
                 }
 
-                String authority =
-                    metadata.getString(META_OSS_AUTHORITY);
-
-                String ossPackage =
-                    metadata.getString(META_OSS_PACKAGE);
-
-                String expectedCertificate =
-                    metadata.getString(META_OSS_CERT);
-					
-				String permission =
-					metadata.getString(META_OSS_PERMISSION);
+                String authority = metadata.getString(META_OSS_AUTHORITY);
+                String ossPackage = metadata.getString(META_OSS_PACKAGE);
+                String expectedCertificate = metadata.getString(META_OSS_CERT);
+                String permission = metadata.getString(META_OSS_PERMISSION);
 
                 if (isEmpty(authority) ||
                     isEmpty(ossPackage) ||
-					isEmpty(permission) ||
+                    isEmpty(permission) ||
                     isEmpty(expectedCertificate) ||
                     "NOT_CONFIGURED".equals(expectedCertificate)) {
-
-                    callbackContext.error(
-                        "OSS provider configuration is incomplete"
-                    );
+                    callbackContext.error("OSS provider configuration is incomplete");
                     return;
                 }
 
-                // Confirm that the configured authority belongs
-                // to the expected OSS application.
+                // Confirm that the configured authority belongs to the expected OSS app.
                 android.content.pm.ProviderInfo providerInfo =
                     packageManager.resolveContentProvider(
                         authority,
@@ -164,126 +145,94 @@ public class SharedToken extends CordovaPlugin {
 
                 if (providerInfo == null ||
                     !ossPackage.equals(providerInfo.packageName)) {
-
-                    callbackContext.error(
-                        "OSS ContentProvider is unavailable"
-                    );
+                    callbackContext.error("OSS ContentProvider is unavailable");
                     return;
                 }
 
                 if (context.checkSelfPermission(permission)
                     != PackageManager.PERMISSION_GRANTED) {
-
-                    callbackContext.error(
-                        "OSS signature permission is not granted"
-                    );
+                    callbackContext.error("OSS signature permission is not granted");
                     return;
                 }
 
-                // Verify the OSS provider's actual signing identity.
+                // Verify the installed OSS application's actual signing identity.
                 if (!TokenSecurity.isTrustedPackage(
                     context,
                     ossPackage,
                     expectedCertificate
                 )) {
-
-                    callbackContext.error(
-                        "OSS signing certificate validation failed"
-                    );
+                    callbackContext.error("OSS signing certificate validation failed");
                     return;
                 }
 
-                Uri providerUri = Uri.parse(
-                    "content://" + authority
+                Uri providerUri = Uri.parse("content://" + authority);
+
+                Bundle response = context.getContentResolver().call(
+                    providerUri,
+                    METHOD_GET_TOKEN,
+                    null,
+                    null
                 );
 
-                Bundle response =
-                    context.getContentResolver().call(
-                        providerUri,
-                        METHOD_GET_TOKEN,
-                        null,
-                        null
-                    );
-
                 if (response == null) {
-                    callbackContext.error(
-                        "OSS provider returned an empty response"
-                    );
+                    callbackContext.error("OSS provider returned an empty response");
                     return;
                 }
 
-                int version =
-                    response.getInt(KEY_VERSION, -1);
+                int version = response.getInt(KEY_VERSION, -1);
 
                 if (version != CONTRACT_VERSION) {
-                    callbackContext.error(
-                        "Unsupported OSS contract version"
-                    );
+                    callbackContext.error("Unsupported OSS contract version");
                     return;
                 }
 
-                String status =
-                    response.getString(KEY_STATUS);
+                String status = response.getString(KEY_STATUS);
 
                 if (STATUS_SUCCESS.equals(status)) {
-
-                    String token =
-                        response.getString(KEY_TOKEN);
+                    String token = response.getString(KEY_TOKEN);
+                    long issuedAt = response.getLong(KEY_ISSUED_AT, -1L);
 
                     if (isEmpty(token)) {
-                        callbackContext.error(
-                            "OSS returned an empty AMToken"
-                        );
+                        callbackContext.error("OSS returned an empty AMToken");
                         return;
                     }
 
-                    callbackContext.success(token);
+                    if (issuedAt <= 0) {
+                        callbackContext.error("OSS returned an invalid or missing issuedAt value");
+                        return;
+                    }
+
+                    if (returnDetails) {
+                        JSONObject details = new JSONObject();
+                        details.put(KEY_TOKEN, token);
+                        details.put(KEY_ISSUED_AT, issuedAt);
+                        callbackContext.success(details);
+                    } else {
+                        callbackContext.success(token);
+                    }
 
                 } else if (STATUS_NOT_FOUND.equals(status)) {
-
-                    callbackContext.error(
-                        STATUS_NOT_FOUND
-                    );
-
+                    callbackContext.error(STATUS_NOT_FOUND);
                 } else {
-
-                    callbackContext.error(
-                        "Unable to retrieve AMToken from OSS"
-                    );
+                    callbackContext.error("Unable to retrieve AMToken from OSS");
                 }
 
             } catch (SecurityException e) {
-
-                callbackContext.error(
-                    "OSS provider access was denied"
-                );
-
+                callbackContext.error("OSS provider access was denied");
             } catch (Exception e) {
-
-                callbackContext.error(
-                    "Unable to communicate with OSS"
-                );
+                callbackContext.error("Unable to communicate with OSS");
             }
         });
     }
 
     private void deleteToken(CallbackContext callbackContext) {
-
         executor.execute(() -> {
-
             try {
-
                 Context context = cordova.getActivity();
-
                 SharedTokenStorage.delete(context);
-
                 callbackContext.success("SUCCESS");
-
             } catch (Exception e) {
-
-                callbackContext.error(
-                    "Unable to delete AMToken"
-                );
+                callbackContext.error("Unable to delete AMToken");
             }
         });
     }

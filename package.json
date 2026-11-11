@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-shared-token",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Cordova plugin for secure token sharing between trusted iOS and Android applications",
   "cordova": {
     "id": "cordova-plugin-shared-token",
